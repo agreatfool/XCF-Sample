@@ -2,7 +2,7 @@
 
 using namespace XCF;
 
-int main() {
+int main(int argc, char** argv) {
     Log *logger = LogFactory::get(LogType::SysLog);
 
     logger->setPriority(LogPriority::Info);
