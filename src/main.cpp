@@ -1,16 +1,13 @@
-#include "lib/log/Log.h"
+#include "XCF.h"
 
 using namespace XCF;
 
 int main(int argc, char** argv) {
-    Log *logger = LogFactory::get(LogType::SysLog);
 
-    logger->setPriority(LogPriority::Info);
+    Log* logger = LogFactory::get();
 
-    logger->debug("debug message!");
-    logger->info("info message!");
-    logger->warn("warning message!");
-    logger->error("error message!");
+    logger->debug("123");
+    logger->debug("12333");
 
     logger->output();
 
