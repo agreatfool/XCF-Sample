@@ -19,15 +19,22 @@ void startServer(Log *logger) {
 
 static void stdinCallback(EventLoop *loop, EventWatcher *watcher, int revents) {
     if (EV_ERROR & revents) {
-        ::logger->error("[ClientBootstrap] clientCallback: got invalid event!");
+        ::logger->error("[ClientBootstrap] stdinCallback: got invalid event!");
         return;
     }
 
     char *buffer = NULL;
     size_t size = 2048;
-    ::logger->info("stdin written to, reading...");
     getline(&buffer, &size, stdin);
-    ::client->write(buffer);
+
+    std::string format(buffer);
+    format.erase(std::remove(format.begin(), format.end(), '\n'), format.end());
+    char *message = Utility::stringToChar(format);
+    ::logger->info(Utility::stringFormat("[ClientBootstrap] stdinCallback: stdin written: %s", message));
+    ::client->write(message);
+
+    delete buffer;
+    delete message;
 }
 
 static void clientCallback(EventLoop *loop, EventWatcher *watcher, int revents) {
