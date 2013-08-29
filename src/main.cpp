@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <errno.h>
 
 #include "lib/socket/Bootstrap.h"
@@ -7,12 +8,26 @@
 
 using namespace XCF;
 
+Socket *client;
 Log *logger = LogFactory::get();
 
 void startServer(Log *logger) {
     ::logger->info("start server...");
     ServerBootstrap *server = new ServerBootstrap(SocketProtocol::TCP, "127.0.0.1", 10000);
     server->start();
+}
+
+static void stdinCallback(EventLoop *loop, EventWatcher *watcher, int revents) {
+    if (EV_ERROR & revents) {
+        ::logger->error("[ClientBootstrap] clientCallback: got invalid event!");
+        return;
+    }
+
+    char *buffer = NULL;
+    size_t size = 2048;
+    ::logger->info("stdin written to, reading...");
+    getline(&buffer, &size, stdin);
+    ::client->write(buffer);
 }
 
 static void clientCallback(EventLoop *loop, EventWatcher *watcher, int revents) {
@@ -22,14 +37,9 @@ static void clientCallback(EventLoop *loop, EventWatcher *watcher, int revents) 
     }
 
     int32_t socketFd = watcher->fd;
-    Socket *socket = ClientBootstrap::socketPool->getSocket(socketFd);
-    if (Utility::isNullPtr(socket)) {
-        ::logger->error("[ClientBootstrap] clientCallback: socket not found!");
-        return;
-    }
 
     SocketBuffer *buffer = new SocketBuffer();
-    int32_t received = socket->read(buffer, SOCK_BUFFER_LENGTH);
+    int32_t received = recv(socketFd, buffer->getBuffer(), SOCK_BUFFER_LENGTH, 0);
 
     if (received < 0) {
         // error
@@ -51,21 +61,23 @@ static void clientCallback(EventLoop *loop, EventWatcher *watcher, int revents) 
 void startClient(Log *logger) {
     ::logger->info("start client...");
 
-    char buffer[SOCK_BUFFER_LENGTH] = "";
-
-    Socket *connection = new Socket("127.0.0.1", 10000, SocketProtocol::TCP, SocketEndType::CLIENT);
-    if (connection->getSocketStatus() < SocketStatus::CONNECTED) {
+    ::client = new Socket("127.0.0.1", 10000, SocketProtocol::TCP, SocketEndType::CLIENT);
+    if (::client->getSocketStatus() < SocketStatus::CONNECTED) {
         ::logger->error("failed to connect to server...");
         exit(1);
     }
 
-    ClientBootstrap *client = new ClientBootstrap(SocketProtocol::TCP);
-    ClientBootstrap::eventIo->addWatcher(connection->getSocketFd(), clientCallback);
-    client->start();
+    EventLoop *loop = ev_default_loop(0);
 
-    while (std::cin >> buffer) {
-        connection->write(buffer);
-    }
+    EventWatcher *clientWatcher = (EventWatcher *) malloc(sizeof(EventWatcher));
+    ev_io_init(clientWatcher, clientCallback, ::client->getSocketFd(), EV_READ);
+    ev_io_start(loop, clientWatcher);
+
+    EventWatcher *stdinWatcher = (EventWatcher *) malloc(sizeof(EventWatcher));
+    ev_io_init(stdinWatcher, stdinCallback, /*STDIN_FILENO*/ 0, EV_READ);
+    ev_io_start(loop, stdinWatcher);
+
+    ev_run(loop, 0);
 }
 
 int main(int argc, char* argv[]) {
