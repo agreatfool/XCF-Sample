@@ -17,7 +17,7 @@ void startServer(Log *logger) {
     server->start();
 }
 
-static void stdinCallback(EventLoop *loop, EventWatcher *watcher, int revents) {
+static void stdinCallback(EventLoop *loop, EventIoWatcher *watcher, int revents) {
     if (EV_ERROR & revents) {
         ::logger->error("[ClientBootstrap] stdinCallback: got invalid event!");
         return;
@@ -37,7 +37,7 @@ static void stdinCallback(EventLoop *loop, EventWatcher *watcher, int revents) {
     delete message;
 }
 
-static void clientCallback(EventLoop *loop, EventWatcher *watcher, int revents) {
+static void clientCallback(EventLoop *loop, EventIoWatcher *watcher, int revents) {
     if (EV_ERROR & revents) {
         ::logger->error("[ClientBootstrap] clientCallback: got invalid event!");
         return;
@@ -76,11 +76,11 @@ void startClient(Log *logger) {
 
     EventLoop *loop = ev_default_loop(0);
 
-    EventWatcher *clientWatcher = (EventWatcher *) malloc(sizeof(EventWatcher));
+    EventIoWatcher *clientWatcher = (EventIoWatcher *) malloc(sizeof(EventIoWatcher));
     ev_io_init(clientWatcher, clientCallback, ::client->getSocketFd(), EV_READ);
     ev_io_start(loop, clientWatcher);
 
-    EventWatcher *stdinWatcher = (EventWatcher *) malloc(sizeof(EventWatcher));
+    EventIoWatcher *stdinWatcher = (EventIoWatcher *) malloc(sizeof(EventIoWatcher));
     ev_io_init(stdinWatcher, stdinCallback, /*STDIN_FILENO*/ 0, EV_READ);
     ev_io_start(loop, stdinWatcher);
 
