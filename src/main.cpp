@@ -13,13 +13,13 @@ Log *logger = LogFactory::get();
 
 void startServer(Log *logger) {
     ::logger->info("start server...");
-    ServerBootstrap *server = new ServerBootstrap(SocketProtocol::TCP, "127.0.0.1", 10000);
+    ServerBootstrap *server = ServerBootstrap::init(SocketProtocol::TCP, "127.0.0.1", 10000);
     server->start();
 }
 
 static void stdinCallback(EventLoop *loop, EventIoWatcher *watcher, int revents) {
     if (EV_ERROR & revents) {
-        ::logger->error("[ClientBootstrap] stdinCallback: got invalid event!");
+        ClientBootstrap::get()->getLogger()->error("[ClientBootstrap] stdinCallback: got invalid event!");
         return;
     }
 
@@ -27,10 +27,15 @@ static void stdinCallback(EventLoop *loop, EventIoWatcher *watcher, int revents)
     size_t size = 2048;
     getline(&buffer, &size, stdin);
 
+    // message
     std::string format(buffer);
     format.erase(std::remove(format.begin(), format.end(), '\n'), format.end());
     char *message = Utility::stringToChar(format);
-    ::logger->info(Utility::stringFormat("[ClientBootstrap] stdinCallback: stdin written: %s", message));
+    ClientBootstrap::get()->getLogger()->info(Utility::stringFormat("[ClientBootstrap] stdinCallback: stdin written: %s", message));
+
+    // send
+    // we cannot get client socket from socket pool:
+    // since this is the stdin callback, the fd is 0, we cannot find the client socket via this fd
     ::client->write(message);
 
     delete buffer;
@@ -39,14 +44,15 @@ static void stdinCallback(EventLoop *loop, EventIoWatcher *watcher, int revents)
 
 static void clientCallback(EventLoop *loop, EventIoWatcher *watcher, int revents) {
     if (EV_ERROR & revents) {
-        ::logger->error("[ClientBootstrap] clientCallback: got invalid event!");
+        ClientBootstrap::get()->getLogger()->error("[ClientBootstrap] clientCallback: got invalid event!");
         return;
     }
 
     int32_t socketFd = watcher->fd;
 
+    Socket *client = ClientBootstrap::get()->getSocketPool()->getSocket(socketFd);
     SocketBuffer *buffer = new SocketBuffer();
-    int32_t received = recv(socketFd, buffer->getBuffer(), SOCK_BUFFER_LENGTH, 0);
+    int32_t received = client->read(buffer, SOCK_BUFFER_LENGTH);
 
     if (received < 0) {
         // error
@@ -55,10 +61,10 @@ static void clientCallback(EventLoop *loop, EventIoWatcher *watcher, int revents
 
     if (received == 0) {
         // stop the app if server socket closed
-        ::logger->info("[ClientBootstrap] clientCallback: server closed, shutdown client!");
+        ClientBootstrap::get()->getLogger()->info("[ClientBootstrap] clientCallback: server closed, shutdown client!");
         exit(0);
     } else {
-        ::logger->info(
+        ClientBootstrap::get()->getLogger()->info(
             Utility::stringFormat("[ClientBootstrap] clientCallback: message got: %s", buffer->getBuffer())
         );
     }
@@ -74,17 +80,15 @@ void startClient(Log *logger) {
         exit(1);
     }
 
-    EventLoop *loop = ev_default_loop(0);
+    ClientBootstrap *clientBoot = ClientBootstrap::init(SocketProtocol::TCP);
 
-    EventIoWatcher *clientWatcher = (EventIoWatcher *) malloc(sizeof(EventIoWatcher));
-    ev_io_init(clientWatcher, clientCallback, ::client->getSocketFd(), EV_READ);
-    ev_io_start(loop, clientWatcher);
+    // add stdin io watcher
+    clientBoot->getEventIo()->addWatcher(0, stdinCallback);
+    // add client socket io watcher
+    clientBoot->getSocketPool()->addSocket(::client);
+    clientBoot->getEventIo()->addWatcher(::client->getSocketFd(), clientCallback);
 
-    EventIoWatcher *stdinWatcher = (EventIoWatcher *) malloc(sizeof(EventIoWatcher));
-    ev_io_init(stdinWatcher, stdinCallback, /*STDIN_FILENO*/ 0, EV_READ);
-    ev_io_start(loop, stdinWatcher);
-
-    ev_run(loop, 0);
+    clientBoot->start();
 }
 
 int main(int argc, char* argv[]) {
