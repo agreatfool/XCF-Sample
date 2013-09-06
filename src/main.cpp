@@ -12,14 +12,14 @@ Socket *client;
 Log *logger = LogFactory::get();
 
 void startServer(Log *logger) {
-    ::logger->info("start server...");
+    LogFactory::get()->info("start server...");
     ServerBootstrap *server = ServerBootstrap::init(SocketProtocol::TCP, "127.0.0.1", 10000);
     server->start();
 }
 
 static void stdinCallback(EventLoop *loop, EventIoWatcher *watcher, int revents) {
     if (EV_ERROR & revents) {
-        ClientBootstrap::get()->getLogger()->error("[ClientBootstrap] stdinCallback: got invalid event!");
+        LogFactory::get()->error("[ClientBootstrap] stdinCallback: got invalid event!");
         return;
     }
 
@@ -31,7 +31,7 @@ static void stdinCallback(EventLoop *loop, EventIoWatcher *watcher, int revents)
     std::string format(buffer);
     format.erase(std::remove(format.begin(), format.end(), '\n'), format.end());
     char *message = Utility::stringToChar(format);
-    ClientBootstrap::get()->getLogger()->info(Utility::stringFormat("[ClientBootstrap] stdinCallback: stdin written: %s", message));
+    LogFactory::get()->info(Utility::stringFormat("[ClientBootstrap] stdinCallback: stdin written: %s", message));
 
     // send
     // we cannot get client socket from socket pool:
@@ -44,7 +44,7 @@ static void stdinCallback(EventLoop *loop, EventIoWatcher *watcher, int revents)
 
 static void clientCallback(EventLoop *loop, EventIoWatcher *watcher, int revents) {
     if (EV_ERROR & revents) {
-        ClientBootstrap::get()->getLogger()->error("[ClientBootstrap] clientCallback: got invalid event!");
+        LogFactory::get()->error("[ClientBootstrap] clientCallback: got invalid event!");
         return;
     }
 
@@ -61,10 +61,10 @@ static void clientCallback(EventLoop *loop, EventIoWatcher *watcher, int revents
 
     if (received == 0) {
         // stop the app if server socket closed
-        ClientBootstrap::get()->getLogger()->info("[ClientBootstrap] clientCallback: server closed, shutdown client!");
+        LogFactory::get()->info("[ClientBootstrap] clientCallback: server closed, shutdown client!");
         exit(0);
     } else {
-        ClientBootstrap::get()->getLogger()->info(
+        LogFactory::get()->info(
             Utility::stringFormat("[ClientBootstrap] clientCallback: message got: %s", buffer->getBuffer())
         );
     }
@@ -72,11 +72,11 @@ static void clientCallback(EventLoop *loop, EventIoWatcher *watcher, int revents
 }
 
 void startClient(Log *logger) {
-    ::logger->info("start client...");
+    LogFactory::get()->info("start client...");
 
     ::client = new Socket("127.0.0.1", 10000, SocketProtocol::TCP, SocketEndType::CLIENT);
     if (::client->getSocketStatus() < SocketStatus::CONNECTED) {
-        ::logger->error("failed to connect to server...");
+        LogFactory::get()->error("failed to connect to server...");
         exit(1);
     }
 
@@ -105,14 +105,14 @@ int main(int argc, char* argv[]) {
     buffer->copyBuffer(string1);
     char string2[] = "main: ";
     buffer->copyBuffer(string2);
-    ::logger->info(buffer->getBuffer());
+    LogFactory::get()->info(buffer->getBuffer());
 
     if (input == "server") {
         startServer(logger);
     } else if (input == "client") {
         startClient(logger);
     } else {
-        ::logger->error("Invalid input!");
+        LogFactory::get()->error("Invalid input!");
     }
 
     return 0;
