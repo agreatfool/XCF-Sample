@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <errno.h>
+#include <cstdio>
 
 #include "lib/socket/Bootstrap.h"
 #include "lib/socket/Socket.h"
@@ -9,9 +10,8 @@
 using namespace XCF;
 
 Socket *client;
-Log *logger = LogFactory::get();
 
-void startServer(Log *logger) {
+void startServer() {
     LogFactory::get()->info("start server...");
     ServerBootstrap *server = ServerBootstrap::init(SocketProtocol::TCP, "127.0.0.1", 10000);
     server->start();
@@ -28,18 +28,15 @@ static void stdinCallback(EventLoop *loop, EventIoWatcher *watcher, int revents)
     getline(&buffer, &size, stdin);
 
     // message
-    std::string format(buffer);
-    format.erase(std::remove(format.begin(), format.end(), '\n'), format.end());
-    char *message = Utility::stringToChar(format);
-    LogFactory::get()->info(Utility::stringFormat("[ClientBootstrap] stdinCallback: stdin written: %s", message));
+    Utility::stringTrimLineBreak(buffer);
+    LogFactory::get()->info(Utility::stringFormat("[ClientBootstrap] stdinCallback: stdin written: %s", buffer));
 
     // send
     // we cannot get client socket from socket pool:
     // since this is the stdin callback, the fd is 0, we cannot find the client socket via this fd
-    ::client->write(message);
+    ::client->write(buffer);
 
     delete buffer;
-    delete message;
 }
 
 static void clientCallback(EventLoop *loop, EventIoWatcher *watcher, int revents) {
@@ -71,7 +68,7 @@ static void clientCallback(EventLoop *loop, EventIoWatcher *watcher, int revents
     delete buffer;
 }
 
-void startClient(Log *logger) {
+void startClient() {
     LogFactory::get()->info("start client...");
 
     ::client = new Socket("127.0.0.1", 10000, SocketProtocol::TCP, SocketEndType::CLIENT);
@@ -100,6 +97,8 @@ int main(int argc, char* argv[]) {
         input = argv[1];
     }
 
+    LogFactory::get()->registerTimer();
+
     char string1[] = "XCF-Sample: ";
     SocketBuffer *buffer = new SocketBuffer();
     buffer->copyBuffer(string1);
@@ -107,10 +106,12 @@ int main(int argc, char* argv[]) {
     buffer->copyBuffer(string2);
     LogFactory::get()->info(buffer->getBuffer());
 
+    LogFactory::get()->info(Utility::stringFormat("CPU core number: %d", Utility::getCpuNum()));
+
     if (input == "server") {
-        startServer(logger);
+        startServer();
     } else if (input == "client") {
-        startClient(logger);
+        startClient();
     } else {
         LogFactory::get()->error("Invalid input!");
     }
