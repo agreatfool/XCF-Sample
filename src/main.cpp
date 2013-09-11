@@ -46,7 +46,7 @@ static void clientCallback(EventLoop *loop, EventIoWatcher *watcher, int revents
 
     Socket *client = ClientBootstrap::get()->getSocketPool()->getSocket(socketFd);
     SocketBuffer *buffer = new SocketBuffer();
-    int32_t received = client->read(buffer, SOCK_BUFFER_LENGTH);
+    int32_t received = client->read(buffer, XCF_SOCK_BUFFER_LENGTH);
 
     if (received < 0) {
         // error
