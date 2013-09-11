@@ -3,11 +3,6 @@
 #include <cstdio>
 
 #include "XCF.h"
-#include "lib/log/Log.h"
-#include "lib/socket/Bootstrap.h"
-#include "lib/socket/Socket.h"
-#include "lib/event/Event.h"
-#include "lib/utility/Utility.h"
 
 USING_NS_XCF;
 
