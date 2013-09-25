@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
     std::string input;
 
     if (argc != 2) {
-        input = "client";
+        input = "server";
     } else {
         input = argv[1];
     }
