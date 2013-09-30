@@ -3,11 +3,6 @@
 #include <cstdio>
 
 #include "XCF.h"
-#include "lib/log/Log.h"
-#include "lib/socket/Bootstrap.h"
-#include "lib/socket/Socket.h"
-#include "lib/event/Event.h"
-#include "lib/utility/Utility.h"
 
 USING_NS_XCF;
 
@@ -51,7 +46,7 @@ static void clientCallback(EventLoop *loop, EventIoWatcher *watcher, int revents
 
     Socket *client = ClientBootstrap::get()->getSocketPool()->getSocket(socketFd);
     SocketBuffer *buffer = new SocketBuffer();
-    int32_t received = client->read(buffer, SOCK_BUFFER_LENGTH);
+    int32_t received = client->read(buffer, XCF_SOCK_BUFFER_LENGTH);
 
     if (received < 0) {
         // error
@@ -94,7 +89,7 @@ int main(int argc, char* argv[]) {
     std::string input;
 
     if (argc != 2) {
-        input = "client";
+        input = "server";
     } else {
         input = argv[1];
     }
